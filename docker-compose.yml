@@ -43,7 +43,7 @@ services:
     ports:
       - 16800:6800
     command: >
-      sh -c "cd /scraptt && rm twistd.pid && scrapyd && scrapyd-deploy"
+      sh -c "cd /scraptt && scrapyd && scrapyd-deploy"
     networks:
       - scraptt-network
     volumes:
