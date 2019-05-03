@@ -1,0 +1,57 @@
+version: '3.1'
+
+services:
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    ports:
+      - 27017:27017
+    networks:
+      - scraptt-network
+    volumes:
+      - scraptt-db:/data/db
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    networks:
+      - scraptt-network
+
+  # scraptt:
+  #   image: scraptt:0.0.2
+  #   volumes:
+  #     - scraptt:/var/log
+  #   depends_on:
+  #     - mongo
+  #     - scrapyd
+  #   networks:
+  #     - scraptt-network
+
+  scrapyd:
+    image: scraptt:0.0.2
+    environment:
+      ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST}
+      ELASTICSEARCH_PORT: ${ELASTICSEARCH_PORT}
+    ports:
+      - 16800:6800
+    command: >
+      sh -c "cd /scraptt && rm twistd.pid && scrapyd && scrapyd-deploy"
+    networks:
+      - scraptt-network
+    volumes:
+      - ./:/scraptt
+
+volumes:
+  scraptt:
+  scraptt-db:
+
+networks:
+  scraptt-network:

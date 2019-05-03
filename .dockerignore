@@ -1,9 +1,13 @@
 **/.git
 **/.gitignore
-**/.gitmodules
+**/.
+**/.scrapy
 Dockerfile
 .dockerignore
 **/__pycache__
 README.md
 mount
 scrapyd.cfg
+twistd.pid
+logs/
+dbs/

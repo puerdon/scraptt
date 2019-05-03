@@ -164,3 +164,6 @@ tags
 mount/*
 !mount/.keep
 .envrc
+.env
+dbs/*
+twistd.pid

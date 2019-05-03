@@ -6,7 +6,7 @@ SPIDER_MODULES = ['scraptt.spiders']
 NEWSPIDER_MODULE = 'scraptt.spiders'
 ROBOTSTXT_OBEY = False
 CONCURRENT_REQUESTS = 16
-DOWNLOAD_DELAY = 0
+DOWNLOAD_DELAY = 0.5
 COOKIES_ENABLED = False
 TELNETCONSOLE_ENABLED = True
 # cookies
@@ -14,7 +14,9 @@ COOKIES_ENABLED = True
 COOKIES_DEBUG = False
 # logging
 LOG_LEVEL = 'INFO'
-LOG_FILE = '/var/log/scraptt.log'
+# LOG_FILE = '/var/log/scraptt.log'
+LOG_FILE = './scraptt.log'
+
 
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
@@ -56,3 +58,5 @@ HTTPCACHE_EXPIRATION_SECS = 60 * 60
 HTTPCACHE_DIR = 'httpcache'
 HTTPCACHE_IGNORE_HTTP_CODES = []
 HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+MONGO_URI = "mongo:27017"

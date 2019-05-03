@@ -20,8 +20,8 @@ class PttSpider(scrapy.Spider):
     handle_httpstatus_list = [404]
     custom_settings = {
         'ITEM_PIPELINES': {
-            'cockroach.pipelines.PTTPipeline': 300,
-            'cockroach.pipelines.ElasticsearchPipeline': 400,
+            'scraptt.pipelines.PTTPipeline': 300,
+            'scraptt.pipelines.ElasticsearchPipeline': 400,
         }
     }
 
@@ -48,6 +48,7 @@ class PttSpider(scrapy.Spider):
             if since
             else datetime.now().date()
         )
+        self.logger.warning(f"parameter 'since' detected!: {self.since}")
 
     def start_requests(self):
         """Request handler."""
@@ -60,11 +61,13 @@ class PttSpider(scrapy.Spider):
     def parse_index(self, response):
         """Parse index pages."""
         # exclude "置底文"
+        # print(response.body)
         item_css = '.r-ent .title a'
         if response.url.endswith('index.html'):
             topics = response.dom('.r-list-sep').prev_all(item_css)
         else:
             topics = response.dom(item_css)
+
         # reverse order to conform to timeline
         for topic in reversed(list(topics.items())):
             title = topic.text()
@@ -73,7 +76,7 @@ class PttSpider(scrapy.Spider):
             time = datetime.fromtimestamp(int(timestamp))
             if time.date() < self.since:
                 return
-            self.logger.debug(f'+ {title}, {href}, {time}')
+            # self.logger.info(f'+ {title}, {href}, {time}')
             yield scrapy.Request(
                 href, cookies={'over18': '1'}, callback=self.parse_post
             )
@@ -84,7 +87,43 @@ class PttSpider(scrapy.Spider):
             )
 
     def parse_post(self, response):
-        """Parse PTT post (PO文)."""
+        """
+        解析PTT上的每一篇Post。
+        目標是產生一個名為post的dict，具有以下鍵值：
+        {
+            ip: 
+            author: 作者id
+            time: 文章標題
+            content: 文章內文
+            board: 版名
+            id: 文章id
+            quote: <String>                 # 如果是回文的話，此欄位存引述的內容
+            time: {
+                published: <Datetime>,
+                crawled: <Datatime>
+            }    
+            comments: [
+                {
+                    type: "推|噓|→",
+                    author: ,
+                    content: ,
+                    time: {
+                        published: <Datetime>,
+                        crawled: <Datetime>
+                    },
+                    ip: 
+                },
+                
+            count: {                       #推,噓,回文數量 <defaultdict>
+                "推": <int>,
+                "噓": <int>,
+                "→": <int>
+
+            } 
+
+        """
+        # print(response.body)
+
         if response.status == 404:
             self.logger.warning(f'404: {response.url}')
             return None
@@ -214,4 +253,5 @@ class PttSpider(scrapy.Spider):
         post.update(
             {'count': comment_counter(post['comments'])}
         )
+        # print(post)
         yield PostItem(**post)

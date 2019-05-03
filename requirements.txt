@@ -1,8 +1,14 @@
+six==1.11.0
+Twisted==18.9.0
 Scrapy==1.5.1
 scrapyd-client==1.1.0
 pyquery==1.2.17
 python-dateutil==2.6.1
-git+https://github.com/PTT-Corpus/scraptt-pipeline@es
+# git+https://github.com/PTT-Corpus/scraptt-pipeline@es
 fake-useragent==0.1.10
 scrapy-fake-useragent==1.1.0
 scrapyd==1.2.0
+pymongo==3.8.0
+jseg==0.0.4
+elasticsearch==6.3.0
+elasticsearch-dsl==6.2.1

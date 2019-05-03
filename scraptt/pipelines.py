@@ -1,115 +1,158 @@
-# -*- coding: utf-8 -*-
 """Scrapy pipeilnes."""
-import sqlite3
+from hashlib import sha256
 import logging
 
-DB_PATH = '/usr/local/var/ptt.db'
+import pymongo
+import urllib
 
+from es import Mongo2ESDoc
 logger = logging.getLogger(__name__)
 
+class MongoPipeline(object):
 
-class PTTPipeline:
-    """PTT pipeline."""
+    collection_name = 'scrapy_items'
+
+    def __init__(self, mongo_uri):
+        self.mongo_uri = mongo_uri
+        self.username = urllib.parse.quote_plus('lope')
+        self.password = urllib.parse.quote_plus('ntugillope')
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(
+            mongo_uri=crawler.settings.get('MONGO_URI'),
+        )
 
     def open_spider(self, spider):
-        """Build database connection."""
-        self.connection = sqlite3.connect(DB_PATH)
-        self.cursor = self.connection.cursor()
-        # create table for "POST"
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS post
-            (
-                id TEXT PRIMARY KEY,
-                board TEXT,
-                author TEXT,
-                publisehd DATETIME,
-                crawled DATETIME,
-                title TEXT,
-                url TEXT,
-                content TEXT
-            )
-        ''')
-        # create table for "COMMENT"
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS comment
-            (
-                post_id TEXT,
-                type TEXT,
-                author TEXT,
-                publisehd DATETIME,
-                crawled DATETIME,
-                content TEXT,
-                FOREIGN KEY (post_id) REFERENCES post(id)
-            )
-        ''')
-        self.connection.commit()
-        logger.debug('DB connected.')
+
+        self.client = pymongo.MongoClient('mongodb://{}:{}@{}'.format(self.username, self.password, self.mongo_uri))
+
+        dblist = self.client.list_database_names()
+        if 'ptt' not in dblist:
+            logging.warn("There is not db named 'ptt'. Creating one...")
+
+        self.pttdb = self.client["ptt"]
+
+
+        # col_list = self.pttdb.list_collection_names()
+
+        # if "meta" not in col_list:
+        self.meta_col = self.pttdb["meta"]
+        # else:
+            # self.meta_col = self.pttdb["meta"]
+
+        # if "ptt" not in col_list:
+            # self.ptt_col = self.pttdb["ptt"]
+        # else:
+        self.ptt_col = self.pttdb["ptt"]
 
     def close_spider(self, spider):
-        """Close database connectoin."""
-        self.connection.close()
-        logger.debug('DB disconnected.')
+        self.client.close()
+
+
+class MetaPipeline(MongoPipeline):
+    """Insert PTT meta-data into database."""
 
     def process_item(self, item, spider):
         """Insert data into database."""
-        self.cursor.execute(f'''
-            INSERT OR IGNORE INTO post
-            (id, board, author, publisehd, crawled, title, url, content, ip)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-                item['id'], item['board'], item['author'],
-                item['time']['published'], item['time']['published'],
-                item['title'], item['url'], item['content'], item['ip'],
-            )
+
+        meta_obj = {
+            "name": item["name"]
+        }
+
+        self.meta_col.insert_one(meta_obj)
+
+        return item
+
+class PTTPipeline(MongoPipeline):
+    """Insert PTT POST and COMMENT into database."""
+
+    # 其實還需要檢查蟲爬的文章是否已經重複或者完全沒有更動，所以不用浪費資源再存一次
+    # 或者要使用mongodb的更新功能
+
+    def process_item(self, item, spider):
+        """Insert data into database."""
+        post_obj = {
+            "id": item['id'],
+            "board": item['board'],
+            "author": item['author'],
+            "published": item['time']['published'],
+            "crawled": item['time']['crawled'],
+            "title": item['title'],
+            "ip": item['ip'],
+            "content": item['content'],
+            "upvote": item['count']['推'],
+            "novote": item['count']['→'],
+            "downvote": item['count']['噓'],
+        }
+
+        # self.ptt_col.insert_one(post_obj)
+        self.ptt_col.update_one(
+            {"id": post_obj["id"]},
+            {"$set": post_obj},
+            upsert=True
         )
-        for comment in item['comments']:
-            self.cursor.execute(f'''
-                INSERT OR IGNORE INTO comment
-                (post_id, type, author, publisehd, crawled, content, ip)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                item['id'], comment['type'], comment['author'],
-                comment['time']['published'], comment['time']['published'],
-                comment['content'], comment['ip'],
+
+
+        if len(item['comments']) == 0:
+            return item
+        else:
+            for comment in item['comments']:
+                hashid = sha256((f"{item['id']}"f"{comment['author']}"f"{comment['time']['published']}").encode('utf-8')).hexdigest()[:16]
+                comment_obj = {
+                    "id": hashid,
+                    "type": comment['type'],
+                    "author": comment['author'],
+                    "published": comment['time']['published'],
+                    "crawled": comment['time']['crawled'],
+                    "ip": comment['ip'],
+                    "content": comment['content'],
+                    "post_id": item['id'],
+                }
+                # self.ptt_col.insert_one(comment_obj)
+                self.ptt_col.update_one(
+                    {"id": comment_obj["id"]},
+                    {"$set": comment_obj},
+                    upsert=True
                 )
-            )
-        self.connection.commit()
-        logger.debug('commited')
+
         return item
 
 
-class MetaPipeline:
-    """Meta pipeline."""
-
-    def open_spider(self, spider):
-        """Build database connection."""
-        self.connection = sqlite3.connect(DB_PATH)
-        self.cursor = self.connection.cursor()
-        # create table for "meta"
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS meta
-            (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                translate TEXT
-            )
-        ''')
-        self.connection.commit()
-        logger.debug('DB connected.')
-
-    def close_spider(self, spider):
-        """Close database connectoin."""
-        self.connection.close()
-        logger.debug('DB disconnected.')
+class ElasticsearchPipeline:
+    """Insert PTT POST and COMMENT into Elasticsearch."""
 
     def process_item(self, item, spider):
         """Insert data into database."""
-        self.cursor.execute(f'''
-            INSERT OR IGNORE INTO meta
-            (name)
-            VALUES (?)
-        ''', (item['name'], )
-        )
-        self.connection.commit()
-        logger.debug('commited')
+        Mongo2ESDoc(
+            post_type=0,
+            board=item['board'],
+            author=item['author'],
+            published=item['time']['published'],
+            title=item['title'],
+            content=item['content'],
+            ip=item['ip'],
+            upvote=item['count']['推'],
+            novote=item['count']['→'],
+            downvote=item['count']['噓'],
+            id=item['id'],
+        ).save()
+        for comment in item['comments']:
+            hashid = sha256((
+                f"{item['id']}"
+                f"{comment['author']}"
+                f"{comment['time']['published']}"
+            ).encode('utf-8')).hexdigest()[:16]
+            
+            Mongo2ESDoc(
+                id=hashid,
+                type=comment['type'],
+                post_type=1,
+                board=item['board'],
+                author=comment['author'],
+                published=comment['time']['published'],
+                ip=comment['ip'],
+                content=comment['content'],
+                post_id=item['id'],
+            ).save()
         return item
