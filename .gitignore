@@ -166,4 +166,5 @@ mount/*
 .envrc
 .env
 dbs/*
+*.csv
 twistd.pid
