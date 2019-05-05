@@ -5,7 +5,7 @@ import logging
 import pymongo
 import urllib
 
-from es import Mongo2ESDoc
+from .es import Mongo2ESDoc
 logger = logging.getLogger(__name__)
 
 class MongoPipeline(object):

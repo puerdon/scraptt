@@ -75,7 +75,7 @@ class AlchemyDoc(Doc):
         self.meta.id = kwargs.pop('id')
 
 
-class CockroachDoc(Doc):
+class Mongo2ESDoc(Doc):
     """ES Doc for CockroachDB."""
 
     def __init__(self, *args, **kwargs):
