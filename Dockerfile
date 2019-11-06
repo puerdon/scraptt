@@ -3,5 +3,6 @@ RUN apk add --update tzdata gcc libffi-dev openssl-dev musl-dev libxml2-dev libx
 ENV TZ=Asia/Taipei
 RUN mkdir /scraptt
 ADD requirements.txt /scraptt
+ADD . /scraptt 
 RUN pip install -r /scraptt/requirements.txt
 WORKDIR /scraptt
