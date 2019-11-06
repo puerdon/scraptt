@@ -56,7 +56,7 @@ services:
   #     - scraptt-network
 
   scrapyd:
-    image: scraptt:0.0.2
+    image: scraptt:0.0.9
     environment:
       ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST}
       ELASTICSEARCH_PORT: ${ELASTICSEARCH_PORT}
@@ -67,11 +67,11 @@ services:
     networks:
       - scraptt-network
     volumes:
-      - ./:/scraptt
-
+      #- ./:/scraptt
+      - scraptt-rawdata:/data/rawdata
 volumes:
   scraptt:
   scraptt-db:
-
+  scraptt-rawdata:
 networks:
   scraptt-network:

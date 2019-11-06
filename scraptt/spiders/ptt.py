@@ -20,8 +20,9 @@ class PttSpider(scrapy.Spider):
     handle_httpstatus_list = [404]
     custom_settings = {
         'ITEM_PIPELINES': {
-            'scraptt.pipelines.PTTPipeline': 300,
-            'scraptt.pipelines.ElasticsearchPipeline': 400,
+           'scraptt.pipelines.PTTPipeline': 300,
+           'scraptt.pipelines.ElasticsearchPipeline': 400,
+           'scraptt.pipelines.JsonPipeline': 500
         }
     }
 
