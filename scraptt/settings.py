@@ -60,3 +60,6 @@ HTTPCACHE_IGNORE_HTTP_CODES = []
 HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 MONGO_URI = "mongo:27017"
+
+
+RETRY_HTTP_CODES = [502, 403]

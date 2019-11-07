@@ -8,7 +8,7 @@ import scrapy
 import dateutil.parser as dp
 
 from .parsers.post import mod_content, extract_author, extract_ip
-from .parsers.comment import comment_counter, remove_ip
+from .parsers.comment import comment_counter, split_ip_and_publish_time
 from ..items import PostItem
 
 
@@ -20,8 +20,8 @@ class PttSpider(scrapy.Spider):
     handle_httpstatus_list = [404]
     custom_settings = {
         'ITEM_PIPELINES': {
-           'scraptt.pipelines.PTTPipeline': 300,
-           'scraptt.pipelines.ElasticsearchPipeline': 400,
+           # 'scraptt.pipelines.PTTPipeline': 300,
+           # 'scraptt.pipelines.ElasticsearchPipeline': 400,
            'scraptt.pipelines.JsonPipeline': 500
         }
     }
@@ -128,6 +128,8 @@ class PttSpider(scrapy.Spider):
         if response.status == 404:
             self.logger.warning(f'404: {response.url}')
             return None
+
+        # 抓出主文
         content = (
             response.dom('#main-content')
             .clone()
@@ -137,34 +139,71 @@ class PttSpider(scrapy.Spider):
             .end()
             .html()
         )
+
+        # 抓出meta: 作者/看板/標題/時間
         meta = dict(
             (_.text(), _.next().text())
             for _
             in response.dom('.article-meta-tag').items()
         )
+
         ref = {
             '作者': 'author',
             '時間': 'published',
             '標題': 'title',
         }
-        post = dict()
-        post['ip'] = extract_ip(content)
-        post['content'] = mod_content(content)
-        post['board'] = (
-            response.dom('#topbar a.board').remove('*').text().strip()
-        )
-        post['id'] = (
-            response.url
-            .split('/')[-1]
-            .split('.html')[0]
-        )
-        meta_mod = dict()
+
+        # 目前為止的 post 字典有 ip, content, board, id
+        post = {
+            'ip': extract_ip(content),
+            'content': mod_content(content),
+            'board': response.dom('#topbar a.board').remove('*').text().strip(),
+            'id': response.url.split('/')[-1].split('.html')[0]
+        }
+        # post = dict()
+
+        # # 抽取文章ip
+        # post['ip'] = extract_ip(content)
+
+        # # 抽取清洗過的內文
+        # post['content'] = mod_content(content)
+
+        # # 抽取版名
+        # post['board'] = (
+        #     response.dom('#topbar a.board').remove('*').text().strip()
+        # )
+
+        # # 從URI抽取文章ID
+        # post['id'] = (
+        #     response.url
+        #     .split('/')[-1]
+        #     .split('.html')[0]
+        # )
+
+
+        # 將上面抽取的 meta 放進 post 字典，也就是多加 author / title / published
+        # meta_mod = dict()
         for k in meta.keys():
             if k in ref:
-                meta_mod[ref[k]] = meta[k].strip()
+                post[ref[k]] = meta[k].strip()
+
+        # 確認是否有作者
+        if 'author' in post:
+            post['author'] = extract_author(post['author'])
+        else:
+            self.logger.warning(f'no author found: {response.url}')
+            return
+
+
+        # 處理下方推文
         comments = []
         for _ in response.dom('.push').items():
-            published, ip = remove_ip(_('.push-ipdatetime').text())
+            published, ip = split_ip_and_publish_time(_('.push-ipdatetime').text())
+
+            if published is None and ip is None:
+            # 這種情況下，不是真的回文，而常常是樓主複製前面已出現過的回文
+                continue
+
             comment = {
                 'type': _('.push-tag').text(),
                 'author': extract_author(_('.push-userid').text()),
@@ -175,6 +214,10 @@ class PttSpider(scrapy.Spider):
                 },
                 'ip': ip,
             }
+            
+            # BEGIN: 找出回文發表時間
+            # 如果前面的 published is None, 還不確定是否還需要下面這一段
+            # 要再確認可不可以刪掉
             time_cands = re.findall(
                 '\d{1,2}/\d{1,2}\s\d{1,2}:\d{1,2}',
                 comment['time']['published']
@@ -190,13 +233,13 @@ class PttSpider(scrapy.Spider):
                         f'author: {comment["author"]}'
                     )
                 )
+            # END: 找出回文發表時間
 
-        post.update(meta_mod)
-        if 'author' in post:
-            post['author'] = extract_author(post['author'])
-        else:
-            self.logger.warning(f'no author found: {response.url}')
-            return
+        
+        # 把 meta_mod 字典融進 post 字典
+        # post.update(meta_mod)
+        
+
 
         post['time'] = {
             'published': dp.parse(post.pop('published'))

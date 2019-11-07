@@ -168,3 +168,5 @@ mount/*
 dbs/*
 *.csv
 twistd.pid
+*.ipynb
+data/*

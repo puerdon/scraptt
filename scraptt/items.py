@@ -22,3 +22,8 @@ class MetaItem(scrapy.Item):
     """Item for "META"."""
 
     name = scrapy.Field()
+
+class _ArticleItem(scrapy.Item):
+    """Item for "META"."""
+
+    article = scrapy.Field()

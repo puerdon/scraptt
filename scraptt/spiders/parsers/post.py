@@ -39,7 +39,12 @@ def mod_content(content):
 
 
 def extract_author(string):
-    """Extract author id."""
+    """
+    抽取使用者的id，input範例 "lope (這是暱稱)"
+    此函數目的在於去除括號的暱稱部分，只留下真正的user id
+    Input: str
+    Output: str
+    """
     return string.split(' ')[0]
 
 
