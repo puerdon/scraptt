@@ -199,7 +199,6 @@ class PttSpider(scrapy.Spider):
         comments = []
         for _ in response.dom('.push').items():
             published, ip = split_ip_and_publish_time(_('.push-ipdatetime').text())
-
             if published is None and ip is None:
             # 這種情況下，不是真的回文，而常常是樓主複製前面已出現過的回文
                 continue
@@ -234,12 +233,6 @@ class PttSpider(scrapy.Spider):
                     )
                 )
             # END: 找出回文發表時間
-
-        
-        # 把 meta_mod 字典融進 post 字典
-        # post.update(meta_mod)
-        
-
 
         post['time'] = {
             'published': dp.parse(post.pop('published'))
@@ -297,5 +290,6 @@ class PttSpider(scrapy.Spider):
         post.update(
             {'count': comment_counter(post['comments'])}
         )
-        # print(post)
+
+
         yield PostItem(**post)

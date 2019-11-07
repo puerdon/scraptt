@@ -47,6 +47,6 @@ def split_ip_and_publish_time(ip_and_datetime_str):
         publish_time = ip_and_datetime_str.replace(ip, '')
     else:
         ip = None
-        publish_time = None
+        publish_time = ip_and_datetime_str
 
     return publish_time, ip

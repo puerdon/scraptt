@@ -195,6 +195,15 @@ class JsonPipeline:
             "downvote": item['count']['噓'],
         }
 
+        # print(post_obj)
+        print(item['title'])
+        # print(item['upvote'])
+        # print(item['downvote'])
+        # print(item['novote'])
+        # print(item['comments'])
+
+
+
         # self.ptt_col.insert_one(post_obj)
         # self.ptt_col.update_one(
         #     {"id": post_obj["id"]},
