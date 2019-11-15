@@ -32,60 +32,152 @@ class PttSpider(scrapy.Spider):
         :param: boards: comma-separated board list
         :param: since: start crawling from this date (format: YYYYMMDD)
         """
+        # 從 scrapy 指令參數中擷取 boards 參數
         boards = kwargs.pop('boards')
         if boards == '_all':
             from cockroach.db import Session, Meta
             session = Session()
             self.boards = [i[0] for i in session.query(Meta.name)]
             session.close()
-        else:
+        else:   # 若要爬多個版，那麼版跟版之間以逗號分隔 E.g. -d boards=Gossiping,WomenTalk
             self.boards = boards.strip().split(',')
+
         if 'ALLPOST' in self.boards:
             self.boards.remove('ALLPOST')
             self.logger.warning('No support for crawling "ALLPOST"')
+
         since = kwargs.pop('since', None)
+        # self.since = (
+        #     datetime.strptime(since, '%Y%m%d').date()
+        #     if since is not None
+        #     else datetime.now().date()
+        # )
         self.since = (
             datetime.strptime(since, '%Y%m%d').date()
-            if since
-            else datetime.now().date()
+            if since is not None
+            else None
         )
         self.logger.warning(f"parameter 'since' detected!: {self.since}")
 
+        year = kwargs.pop('year', None)
+        self.year = datetime.strptime(year, '%Y').date() if year is not None else None
+        self.index = 1
+        self.logger.warning(f"接收year參數: {self.year}")
+
+
     def start_requests(self):
-        """Request handler."""
+        """
+        spider首個會呼叫的方法
+        """
         for board in self.boards:
-            url = f'https://www.ptt.cc/bbs/{board}/index.html'
+            if self.since:
+                url = f'https://www.ptt.cc/bbs/{board}/index.html'
+            elif self.year:
+                url = f'https://www.ptt.cc/bbs/{board}/index{self.index}.html'
+            else:
+                self.logger.warning(f"沒有since參數也沒有year參數")
+                return
             yield scrapy.Request(
-                url, cookies={'over18': '1'}, callback=self.parse_index
+                url,
+                cookies={'over18': '1'},
+                callback=self.parse_index
             )
 
     def parse_index(self, response):
-        """Parse index pages."""
-        # exclude "置底文"
-        # print(response.body)
+        """
+        Parse index pages.
+        排除置底文
+        """
+        # 索引頁面中每篇po文的連結 CSS
         item_css = '.r-ent .title a'
+
         if response.url.endswith('index.html'):
+            # 只有在 index.html 時會需要處理置底文的情況
             topics = response.dom('.r-list-sep').prev_all(item_css)
         else:
             topics = response.dom(item_css)
 
-        # reverse order to conform to timeline
-        for topic in reversed(list(topics.items())):
-            title = topic.text()
-            href = topic.attr('href')
+        list_of_topics = list(topics.items())
+
+        if self.since is not None: # 只有在有 since 參數的情況下，才需要
+            
+            # reverse order to conform to timeline
+            for topic in reversed(list_of_topics):
+                title = topic.text()      # po文標題
+                href = topic.attr('href') # po文連結
+                timestamp = re.search(r'(\d{10})', href).group(1)
+                post_time = datetime.fromtimestamp(int(timestamp)) # po文日期
+
+
+                if post_time.date() < self.since:  # 如果po文時間比我們要的最早時間還要早
+                    return
+                self.logger.info(f'+ {title}, {href}, {post_time}')
+                yield scrapy.Request(
+                    href, cookies={'over18': '1'}, callback=self.parse_post
+                )
+            # 找出"上頁"按鈕的連結
+            prev_url = response.dom('.btn.wide:contains("上頁")').attr('href')
+            self.logger.info(f'index link: {prev_url}')
+            if prev_url:
+
+                yield scrapy.Request(
+                    prev_url, cookies={'over18': '1'}, callback=self.parse_index
+                )
+        
+        elif self.year is not None:
+            for topic in list_of_topics[:-1]:
+                title = topic.text()      # po文標題
+                href = topic.attr('href') # po文連結
+                timestamp = re.search(r'(\d{10})', href).group(1)
+                post_time = datetime.fromtimestamp(int(timestamp)) # po文日期
+
+                if post_time.year > self.year.year: # 如果po文年份比我們要的年份更晚
+                    break
+
+                elif post_time.year < self.year.year:
+                    continue
+                else:
+                    self.logger.info(f'+ {title}, {href}, {post_time}')
+                    yield scrapy.Request(
+                        href,
+                        cookies={'over18': '1'},
+                        callback=self.parse_post
+                    )
+
+            last_post_in_a_index_page = list_of_topics[-1]
+            href = last_post_in_a_index_page.attr('href') # po文連結
             timestamp = re.search(r'(\d{10})', href).group(1)
-            time = datetime.fromtimestamp(int(timestamp))
-            if time.date() < self.since:
+            post_time = datetime.fromtimestamp(int(timestamp)) # po文日期
+
+            board = re.search(r"www\.ptt\.cc\/bbs\/(\w{,20})\/", href).group(1)
+            self.index += 1
+            new_page_url = f"https://www.ptt.cc/bbs/{board}/index{self.index}.html"
+            self.logger.info(f"new_page_url: {new_page_url}")
+            if post_time.year > self.year.year: # 如果po文年份比我們要的年份更晚
                 return
-            # self.logger.info(f'+ {title}, {href}, {time}')
-            yield scrapy.Request(
-                href, cookies={'over18': '1'}, callback=self.parse_post
-            )
-        prev_url = response.dom('.btn.wide:contains("上頁")').attr('href')
-        if prev_url:
-            yield scrapy.Request(
-                prev_url, cookies={'over18': '1'}, callback=self.parse_index
-            )
+
+            elif post_time.year < self.year.year:
+                self.logger.info('小魚')
+                yield scrapy.Request(
+                    new_page_url,
+                    cookies={'over18': '1'},
+                    callback=self.parse_index
+                ) 
+            else:
+                self.logger.info('等魚')
+
+                self.logger.info(f'+ {title}, {href}, {post_time}')
+                
+                yield scrapy.Request(
+                    href,
+                    cookies={'over18': '1'},
+                    callback=self.parse_post
+                ) 
+                yield scrapy.Request(
+                    new_page_url,
+                    cookies={'over18': '1'},
+                    callback=self.parse_index
+                )
 
     def parse_post(self, response):
         """
