@@ -6,7 +6,7 @@ SPIDER_MODULES = ['scraptt.spiders']
 NEWSPIDER_MODULE = 'scraptt.spiders'
 ROBOTSTXT_OBEY = False
 CONCURRENT_REQUESTS = 16
-DOWNLOAD_DELAY = 0.3
+DOWNLOAD_DELAY = 0.4
 COOKIES_ENABLED = False
 TELNETCONSOLE_ENABLED = True
 # cookies
@@ -61,5 +61,6 @@ HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 MONGO_URI = "mongo:27017"
 
-
-RETRY_HTTP_CODES = [502, 403]
+RETRY_ENABLED = True
+RETRY_HTTP_CODES = [502, 403, 521]
+RETRY_TIMES = 5

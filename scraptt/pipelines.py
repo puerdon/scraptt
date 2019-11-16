@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 
 from scrapy.exporters import JsonLinesItemExporter
 
+class CustomJsonLinesItemExporter(JsonLinesItemExporter):
+    def __init__(self, file, **kwargs):
+        # 將超類的ensure_ascii屬性設置為False， 確保輸出中文而不是其unicode編碼
+        super(CustomJsonLinesItemExporter, self).__init__(file, ensure_ascii=False, **kwargs)
+
 # class MongoPipeline(object):
 
 #     collection_name = 'scrapy_items'
@@ -174,7 +179,9 @@ class JsonPipeline:
         board = item['board']
         if board not in self.board_to_exporter:
             f = open('/data/rawdata/{}.jsonl'.format(board), 'wb')
-            exporter = JsonLinesItemExporter(f)
+            # f = open('{}.jsonl'.format(board), 'wb')
+
+            exporter = CustomJsonLinesItemExporter(f)
             exporter.start_exporting()
             self.board_to_exporter[board] = exporter
         return self.board_to_exporter[board]
@@ -194,15 +201,12 @@ class JsonPipeline:
             "novote": item['count']['→'],
             "downvote": item['count']['噓'],
         }
-
-        # print(post_obj)
-        print(item['title'])
-        # print(item['upvote'])
-        # print(item['downvote'])
-        # print(item['novote'])
-        # print(item['comments'])
-
-
+        # print(f"====={post_obj['published']}=====")
+        # print(item['title'])
+        # print("item['count']:\n")
+        # print(f"推: {item['count']['推']}  噓: {item['count']['噓']} →: {item['count']['→']}")
+        # print("post_obj['upvote']:\n")
+        # print(f"{post_obj['upvote']}")
 
         # self.ptt_col.insert_one(post_obj)
         # self.ptt_col.update_one(
@@ -210,12 +214,10 @@ class JsonPipeline:
         #     {"$set": post_obj},
         #     upsert=True
         # )
-
+        exporter = self._exporter_for_item(item)
+        exporter.export_item(post_obj)
 
         if len(item['comments']) == 0:
-            exporter = self._exporter_for_item(item)
-            exporter.export_item(post_obj)
-
             return item
         else:
             for comment in item['comments']:

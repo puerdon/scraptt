@@ -170,3 +170,4 @@ dbs/*
 twistd.pid
 *.ipynb
 data/*
+*.jsonl

@@ -64,6 +64,10 @@ class PttSpider(scrapy.Spider):
         self.index = 1
         self.logger.warning(f"接收year參數: {self.year}")
 
+        # # Debug 用
+        # self.output_path = kwargs.pop('output_path', None)
+        # self.logger.warning(f"接收output_path參數: {self.output_path}")
+
 
     def start_requests(self):
         """
