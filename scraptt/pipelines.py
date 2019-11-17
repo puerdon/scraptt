@@ -176,7 +176,7 @@ class HTMLFilePipeline:
         dt_str = dt.strftime("%Y%m%d_%H%M")
         
         try:
-            self.logger.info(f"{board}-{dt}-{article_id}")
+            logger.info(f"{board}-{dt}-{article_id}")
             # Server
             os.makedirs(f"/data/rawdata/{board}/{dt.year}", exist_ok=True)
             with open(f"/data/rawdata/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
@@ -188,8 +188,8 @@ class HTMLFilePipeline:
         except Exception as e:
             print(e)
             print(f"有問題的文章: {article_id}")
-            self.logger.warning(e)
-            self.logger.warning(f"有問題的文章iD: {article_id}")
+            logger.warning(e)
+            logger.warning(f"有問題的文章iD: {article_id}")
         return item
 
 
