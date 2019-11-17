@@ -54,9 +54,12 @@ def extract_ip(string):
     The strategy is to find as many IPs as possible, and return the last one
     as the IP info is usually at the bottom of the content.
     """
-    ips = re.findall(r'\d{,3}\.\d{,3}\.\d{,3}\.\d{,3}', string)
-    if ips:
-        ip = ips[-1]
-    else:
-        ip = None
-    return ip
+    try:
+        ips = re.findall(r'\d{,3}\.\d{,3}\.\d{,3}\.\d{,3}', string)
+        if ips:
+            ip = ips[-1]
+        else:
+            ip = None
+        return ip
+    except:
+        return None

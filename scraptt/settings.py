@@ -34,9 +34,9 @@ DOWNLOADER_MIDDLEWARES = {
 
 # Enable or disable extensions
 # See http://scrapy.readthedocs.org/en/latest/topics/extensions.html
-# EXTENSIONS = {
-#     'scrapy.extensions.telnet.TelnetConsole': None,
-# }
+EXTENSIONS = {
+    'scrapy.extensions.telnet.TelnetConsole': None,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See http://doc.scrapy.org/en/latest/topics/autothrottle.html
@@ -53,14 +53,14 @@ DOWNLOADER_MIDDLEWARES = {
 # AUTOTHROTTLE_DEBUG = False
 
 # Enable and configure HTTP caching (disabled by default)
-HTTPCACHE_ENABLED = True
-HTTPCACHE_EXPIRATION_SECS = 60 * 60
-HTTPCACHE_DIR = 'httpcache'
-HTTPCACHE_IGNORE_HTTP_CODES = []
-HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+# HTTPCACHE_ENABLED = True
+# HTTPCACHE_EXPIRATION_SECS = 60 * 60
+# HTTPCACHE_DIR = 'httpcache'
+# HTTPCACHE_IGNORE_HTTP_CODES = []
+# HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 MONGO_URI = "mongo:27017"
 
 RETRY_ENABLED = True
-RETRY_HTTP_CODES = [502, 403, 521]
+RETRY_HTTP_CODES = [500, 502, 503, 504, 521, 522, 524, 408, 429]
 RETRY_TIMES = 5

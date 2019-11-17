@@ -68,13 +68,15 @@ class PttSpider(scrapy.Spider):
         # self.output_path = kwargs.pop('output_path', None)
         # self.logger.warning(f"接收output_path參數: {self.output_path}")
 
+        self.all_index = True if kwargs.pop('all_index', None) is not None else False
+
 
     def start_requests(self):
         """
         spider首個會呼叫的方法
         """
         for board in self.boards:
-            if self.since:
+            if self.since or self.all_index:
                 url = f'https://www.ptt.cc/bbs/{board}/index.html'
             elif self.year:
                 url = f'https://www.ptt.cc/bbs/{board}/index{self.index}.html'
@@ -103,7 +105,27 @@ class PttSpider(scrapy.Spider):
 
         list_of_topics = list(topics.items())
 
-        if self.since is not None: # 只有在有 since 參數的情況下，才需要
+        if self.all_index:
+            # 找出"上頁"按鈕的連結
+            prev_url = response.dom('.btn.wide:contains("上頁")').attr('href')
+            self.logger.info(f'index link: {prev_url}')
+            latest_index = re.search(r"index(\d{1,6})\.html", prev_url).group(1)
+            self.logger.info(f'latest_index: {latest_index}')
+            latest_index = int(latest_index)
+            self.logger.info(f'response.url: {response.url}')
+            board = re.search(r"www\.ptt\.cc\/bbs\/([\w\d\-_]{1,30})\/", response.url).group(1)
+
+            for index in range(1, latest_index + 1):
+                url = f"https://www.ptt.cc/bbs/{board}/index{index}.html"
+                self.logger.info(f"index link: {url}")
+
+                yield scrapy.Request(
+                    url,
+                    cookies={'over18': '1'},
+                    callback=self.parse_index_2
+                )
+
+        elif self.since is not None: # 只有在有 since 參數的情況下，才需要
             
             # reverse order to conform to timeline
             for topic in reversed(list_of_topics):
@@ -111,7 +133,6 @@ class PttSpider(scrapy.Spider):
                 href = topic.attr('href') # po文連結
                 timestamp = re.search(r'(\d{10})', href).group(1)
                 post_time = datetime.fromtimestamp(int(timestamp)) # po文日期
-
 
                 if post_time.date() < self.since:  # 如果po文時間比我們要的最早時間還要早
                     return
@@ -153,15 +174,16 @@ class PttSpider(scrapy.Spider):
             timestamp = re.search(r'(\d{10})', href).group(1)
             post_time = datetime.fromtimestamp(int(timestamp)) # po文日期
 
-            board = re.search(r"www\.ptt\.cc\/bbs\/(\w{,20})\/", href).group(1)
+            board = re.search(r"www\.ptt\.cc\/bbs\/([\w\d\-_]{1,30})\/", href).group(1)
             self.index += 1
             new_page_url = f"https://www.ptt.cc/bbs/{board}/index{self.index}.html"
             self.logger.info(f"new_page_url: {new_page_url}")
+            
             if post_time.year > self.year.year: # 如果po文年份比我們要的年份更晚
                 return
 
             elif post_time.year < self.year.year:
-                self.logger.info('小魚')
+                self.logger.info('此頁最後一篇貼文年份小於目標年份，繼續爬下一個index')
                 yield scrapy.Request(
                     new_page_url,
                     cookies={'over18': '1'},
@@ -169,7 +191,6 @@ class PttSpider(scrapy.Spider):
                 ) 
             else:
                 self.logger.info('等魚')
-
                 self.logger.info(f'+ {title}, {href}, {post_time}')
                 
                 yield scrapy.Request(
@@ -182,6 +203,31 @@ class PttSpider(scrapy.Spider):
                     cookies={'over18': '1'},
                     callback=self.parse_index
                 )
+
+    def parse_index_2(self, response):
+        item_css = '.r-ent .title a'
+
+        if response.url.endswith('index.html'):
+            # 只有在 index.html 時會需要處理置底文的情況
+            topics = response.dom('.r-list-sep').prev_all(item_css)
+        else:
+            topics = response.dom(item_css)
+
+        list_of_topics = list(topics.items())
+
+        for topic in list_of_topics:
+            title = topic.text()      # po文標題
+            href = topic.attr('href') # po文連結
+            timestamp = re.search(r'(\d{10})', href).group(1)
+            post_time = datetime.fromtimestamp(int(timestamp)) # po文日期
+
+            self.logger.info(f'+ {title}, {href}, {post_time}')
+            yield scrapy.Request(
+                href,
+                cookies={'over18': '1'},
+                callback=self.parse_post
+            )
+
 
     def parse_post(self, response):
         """
@@ -219,7 +265,6 @@ class PttSpider(scrapy.Spider):
             } 
 
         """
-        # print(response.body)
 
         if response.status == 404:
             self.logger.warning(f'404: {response.url}')
@@ -285,13 +330,18 @@ class PttSpider(scrapy.Spider):
 
         # 確認是否有作者
         if 'author' in post:
+            # 如果確認有作者，那麼抽離出作者的id，去掉暱稱
             post['author'] = extract_author(post['author'])
         else:
+            # 如果確認沒有作者，那麼就不要這筆資料了
             self.logger.warning(f'no author found: {response.url}')
             return
 
 
         # 處理下方推文
+        # 推文旁邊的 IP/日期/時間 不一定每條都是三個都有:
+        # - 218.166.4.106 06/22
+        # - 05/30 18:28
         comments = []
         for _ in response.dom('.push').items():
             published, ip = split_ip_and_publish_time(_('.push-ipdatetime').text())

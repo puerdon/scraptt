@@ -1,10 +1,12 @@
 """Scrapy pipeilnes."""
 from hashlib import sha256
 import logging
+import os
 
 import pymongo
 import urllib
 
+from datetime import datetime
 # from .es import Mongo2ESDoc
 logger = logging.getLogger(__name__)
 
@@ -165,6 +167,32 @@ class CustomJsonLinesItemExporter(JsonLinesItemExporter):
 #         return item
 
 
+class HTMLFilePipeline:
+    def process_item(self, item, spider):
+        board = item['board']
+        article_id = item['article_id']
+        timestamp = item['timestamp']
+        dt = datetime.fromtimestamp(int(timestamp))
+        dt_str = dt.strftime("%Y%m%d_%H%M")
+        
+        try:
+            self.logger.info(f"{board}-{dt}-{article_id}")
+            # Server
+            os.makedirs(f"/data/rawdata/{board}/{dt.year}", exist_ok=True)
+            with open(f"/data/rawdata/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
+                f.write(item['html_content'])
+            # Debug
+            # os.makedirs(f"data/{board}/{dt.year}", exist_ok=True)
+            # with open(f"data/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
+            #     f.write(item['html_content'])
+        except Exception as e:
+            print(e)
+            print(f"有問題的文章: {article_id}")
+            self.logger.warning(e)
+            self.logger.warning(f"有問題的文章iD: {article_id}")
+        return item
+
+
 class JsonPipeline:
     def open_spider(self, spider):
         self.board_to_exporter = {}
@@ -178,8 +206,8 @@ class JsonPipeline:
     def _exporter_for_item(self, item):
         board = item['board']
         if board not in self.board_to_exporter:
-            f = open('/data/rawdata/{}.jsonl'.format(board), 'wb')
-            # f = open('{}.jsonl'.format(board), 'wb')
+            # f = open('/data/rawdata/{}.jsonl'.format(board), 'wb')
+            f = open('{}.jsonl'.format(board), 'wb')
 
             exporter = CustomJsonLinesItemExporter(f)
             exporter.start_exporting()
