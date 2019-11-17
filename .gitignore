@@ -171,3 +171,4 @@ twistd.pid
 *.ipynb
 data/*
 *.jsonl
+.scrapy/*
