@@ -88,6 +88,5 @@ class MetaSpider(scrapy.Spider):
                     self.logger.info("==== 將p更新進parent_nodes")
 
                     yield scrapy.Request(href, self.parse, cb_kwargs=dict(parent_nodes=p))
-                
-                parent_nodes = None
-                self.logger.info("把 parent_nodes 清為 None")
+                    parent_nodes = None
+                    self.logger.info("把 parent_nodes 清為 None")
