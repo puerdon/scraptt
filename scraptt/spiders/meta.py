@@ -3,6 +3,7 @@
 
 import scrapy
 import re
+import copy
 from ..items import MetaItem
 
 
@@ -42,6 +43,8 @@ class MetaSpider(scrapy.Spider):
         self.logger.info(parent_nodes)
         self.logger.info(f"即將要loop {[xx.children('.board-name').text() for xx in response.dom('.b-ent a').items()]}")
         for i, _ in enumerate(response.dom('.b-ent a').items()):
+
+
             self.logger.info(f"loop - {i}")
 
             href = _.attr('href')
@@ -53,7 +56,7 @@ class MetaSpider(scrapy.Spider):
             if href.endswith(flag):
                 self.logger.info("== 本頁是 .html")
                 # board_name = href.replace(flag, '').split('/')[-1]
-                if board_name == 'ALLPOST':
+                if board_name == 'ALLPOST' or board_name == '0ClassRoot' or board_name == 'PttAllPosts':
                     # "ALLPOST" always return 404, so it's pointless to
                     # crawl this board.
                     return
@@ -75,10 +78,14 @@ class MetaSpider(scrapy.Spider):
 
                 if parent_nodes is not None and isinstance(parent_nodes, list):
                     self.logger.info("==== parent_nodes is not None")
-                    parent_nodes.append(parent_obj)
+                    
+                    ppp = copy.deepcopy(parent_nodes)
+
+
+                    ppp.append(parent_obj)
 
                     self.logger.info("==== 將parent_obj更新進parent_nodes")
-                    yield scrapy.Request(href, self.parse, cb_kwargs=dict(parent_nodes=parent_nodes))
+                    yield scrapy.Request(href, self.parse, cb_kwargs=dict(parent_nodes=ppp))
 
                 else:
                     self.logger.info("==== parent_nodes is None")
@@ -88,5 +95,5 @@ class MetaSpider(scrapy.Spider):
                     self.logger.info("==== 將p更新進parent_nodes")
 
                     yield scrapy.Request(href, self.parse, cb_kwargs=dict(parent_nodes=p))
-                    parent_nodes = None
-                    self.logger.info("把 parent_nodes 清為 None")
+                    # parent_nodes = None
+                    # self.logger.info("把 parent_nodes 清為 None")
