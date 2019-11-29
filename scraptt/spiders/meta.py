@@ -36,8 +36,11 @@ class MetaSpider(scrapy.Spider):
 
     def parse(self, response, parent_nodes=None):
         """Parse DOM."""
+        self.logger.info("==========")
+        self.logger.info("呼叫parse()")
+        self.logger.info("parent_nodes 參數:")
         self.logger.info(parent_nodes)
-        self.logger.info(f"即將要loop {list(response.dom('.b-ent a').items())}")
+        self.logger.info(f"即將要loop {[xx.children('.board-name').text() for xx in response.dom('.b-ent a').items()]}")
         for i, _ in enumerate(response.dom('.b-ent a').items()):
             self.logger.info(f"loop - {i}")
 
@@ -54,11 +57,13 @@ class MetaSpider(scrapy.Spider):
                     # "ALLPOST" always return 404, so it's pointless to
                     # crawl this board.
                     return
+                self.logger.info("因此準備輸出成 ITEM")
                 self.logger.info("@@@@ ITEM @@@@")
                 self.logger.info(MetaItem(board_name=board_name, board_class=board_class, board_title=board_title, parent_nodes=parent_nodes))  
                 yield MetaItem(board_name=board_name, board_class=board_class, board_title=board_title, parent_nodes=parent_nodes)
             else:
                 self.logger.info("== 本頁不是 .html")
+                self.logger.info("== 生成 parent_obj")
 
                 board_class_id = re.findall(r"(\d{1,10})", href)[0]
                 parent_obj = {
@@ -67,12 +72,12 @@ class MetaSpider(scrapy.Spider):
                     "board_title": board_title,
                     "board_class_id": board_class_id
                 }
-                # p = list()
+
                 if parent_nodes is not None and isinstance(parent_nodes, list):
                     self.logger.info("==== parent_nodes is not None")
-
-                    # p.append(parent_nodes)
                     parent_nodes.append(parent_obj)
+
+                    self.logger.info("==== 將parent_obj更新進parent_nodes")
                     yield scrapy.Request(href, self.parse, cb_kwargs=dict(parent_nodes=parent_nodes))
 
                 else:
@@ -80,6 +85,9 @@ class MetaSpider(scrapy.Spider):
 
                     p = list()
                     p.append(parent_obj)
+                    self.logger.info("==== 將p更新進parent_nodes")
+
                     yield scrapy.Request(href, self.parse, cb_kwargs=dict(parent_nodes=p))
                 
                 parent_nodes = None
+                self.logger.info("把 parent_nodes 清為 None")
