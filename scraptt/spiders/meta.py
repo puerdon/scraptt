@@ -24,14 +24,14 @@ class MetaSpider(scrapy.Spider):
         :param: boards: comma-separated board list
         :param: since: start crawling from this date (format: YYYYMMDD)
         """
-        self.cls_index = kwargs.get('cls', '1')
-        self.logger.info(f"start class index: {self.cls_index}")
+        self.index = kwargs.get('index', '1')
+        self.logger.info(f"start class index: {self.index}")
 
-        def start_requests(self):
-            return scrapy.Request(
-                f"https://www.ptt.cc/cls/{self.cls_index}",
-                callback=self.parse
-            )
+    def start_requests(self):
+        yield scrapy.Request(
+            f"https://www.ptt.cc/cls/{self.index}",
+            callback=self.parse
+        )
 
 
     def parse(self, response, parent_nodes=None):
@@ -81,3 +81,5 @@ class MetaSpider(scrapy.Spider):
                     p = list()
                     p.append(parent_obj)
                     yield scrapy.Request(href, self.parse, cb_kwargs=dict(parent_nodes=p))
+                
+                parent_nodes = None
