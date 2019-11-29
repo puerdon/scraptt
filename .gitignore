@@ -172,3 +172,7 @@ twistd.pid
 data/*
 *.jsonl
 .scrapy/*
+*.json
+data1/*
+data/*
+txt/*

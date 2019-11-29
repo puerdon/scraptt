@@ -40,9 +40,9 @@ class PttSpider(scrapy.Spider):
         self.index_from = kwargs.pop('index_from', None)
         self.index_to = kwargs.pop('index_to', None)
 
-        print(f"boards: {self.boards}")
-        print(f"all: {self.all}")
-        print(f"pages: index{self.index_from} - index{self.index_to}")
+        self.logger.info(f"boards: {self.boards}")
+        self.logger.info(f"all: {self.all}")
+        self.logger.info(f"pages: index{self.index_from} - index{self.index_to}")
 
 
 

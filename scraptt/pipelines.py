@@ -11,11 +11,18 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 from scrapy.exporters import JsonLinesItemExporter
+from scrapy.exporters import JsonItemExporter
 
 class CustomJsonLinesItemExporter(JsonLinesItemExporter):
     def __init__(self, file, **kwargs):
         # 將超類的ensure_ascii屬性設置為False， 確保輸出中文而不是其unicode編碼
         super(CustomJsonLinesItemExporter, self).__init__(file, ensure_ascii=False, **kwargs)
+
+
+class CustomJsonItemExporter(JsonItemExporter):
+    def __init__(self, file, **kwargs):
+        # 將超類的ensure_ascii屬性設置為False， 確保輸出中文而不是其unicode編碼
+        super(CustomJsonItemExporter, self).__init__(file, ensure_ascii=False, **kwargs)
 
 # class MongoPipeline(object):
 
@@ -167,6 +174,42 @@ class CustomJsonLinesItemExporter(JsonLinesItemExporter):
 #         return item
 
 
+
+class MetaExportPipeline(object):
+    """Distribute items across multiple XML files according to their 'year' field"""
+
+    def open_spider(self, spider):
+        f = open('{}.json'.format("aaaaa"), 'w')
+        self.exporter = CustomJsonItemExporter(f)
+        self.exporter.start_exporting()
+
+    def close_spider(self, spider):
+        self.exporter.finish_exporting()
+
+    def process_item(self, item, spider):
+        self.exporter.export_item(item)
+        return item
+
+
+# class MetaPipeline:
+#     def process_item(self, item, spider):
+#         board_name = item['board_name']
+#         board_class = item['board_class']
+#         board_title = item['board_title']
+#         parent_nodes = item['parent_nodes']
+        
+#         try:
+#             logger.info(f"{board}-{dt}-{article_id}")
+#             # Server
+#             # os.makedirs(f"/data/rawdata/{board}/{dt.year}", exist_ok=True)
+#             # with open(f"/data/rawdata/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
+#             #     f.write(item['html_content'])
+#             # Debug
+#             os.makedirs(f"data/{board}/{dt.year}", exist_ok=True)
+#             with open(f"data/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
+#                 f.write(item['html_content'])
+#         return item 
+
 class HTMLFilePipeline:
     def process_item(self, item, spider):
         board = item['board']
@@ -178,13 +221,13 @@ class HTMLFilePipeline:
         try:
             logger.info(f"{board}-{dt}-{article_id}")
             # Server
-            os.makedirs(f"/data/rawdata/{board}/{dt.year}", exist_ok=True)
-            with open(f"/data/rawdata/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
-                f.write(item['html_content'])
-            # Debug
-            # os.makedirs(f"data/{board}/{dt.year}", exist_ok=True)
-            # with open(f"data/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
+            # os.makedirs(f"/data/rawdata/{board}/{dt.year}", exist_ok=True)
+            # with open(f"/data/rawdata/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
             #     f.write(item['html_content'])
+            # Debug
+            os.makedirs(f"data/{board}/{dt.year}", exist_ok=True)
+            with open(f"data/{board}/{dt.year}/{dt_str}_{article_id}.html", "w+") as f:
+                f.write(item['html_content'])
         except Exception as e:
             print(e)
             print(f"有問題的文章: {article_id}")

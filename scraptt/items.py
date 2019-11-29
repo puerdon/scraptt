@@ -21,7 +21,11 @@ class PostItem(scrapy.Item):
 class MetaItem(scrapy.Item):
     """Item for "META"."""
 
-    name = scrapy.Field()
+    board_name = scrapy.Field()
+    board_class = scrapy.Field()
+    board_title = scrapy.Field()
+    parent_nodes = scrapy.Field()
+
 
 class _ArticleItem(scrapy.Item):
     """Item for "META"."""
