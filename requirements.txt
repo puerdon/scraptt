@@ -1,5 +1,5 @@
 six==1.11.0
-Twisted==18.9.0
+Twisted==22.4.0
 Scrapy==1.7.4
 scrapyd-client==1.1.0
 pyquery==1.2.17
